@@ -1,0 +1,6 @@
+<!--
+  This view is used to render the installed plugins page.
+-->
+<div>
+  This plugin allows you to easily setup fingerprinting in jobs chain. Simply enable option "Enable automatic fingerprinting to all downstream jobs" in root job or job which has SCM trigger and causes execution some downstream jobs.
+</div>
