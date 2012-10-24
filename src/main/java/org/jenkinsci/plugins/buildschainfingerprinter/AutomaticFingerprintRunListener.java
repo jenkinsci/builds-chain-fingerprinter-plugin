@@ -35,6 +35,7 @@ public class AutomaticFingerprintRunListener extends RunListener<AbstractBuild> 
                 AbstractBuild upBuild = (AbstractBuild)project.getBuildByNumber(buildNumber);
                 for(AutomaticFingerprintAction action : upBuild.getActions(AutomaticFingerprintAction.class)){
                     r.addAction(action);
+                    action.PerformFingerprinting(r);
                 }
             }
         }

@@ -4,20 +4,30 @@ import hudson.Util;
 import hudson.model.*;
 import hudson.tasks.Fingerprinter;
 import jenkins.model.Jenkins;
+import org.kohsuke.stapler.export.ExportedBean;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Logger;
 
-public class AutomaticFingerprintAction implements RunAction {
+@ExportedBean
+public abstract class AutomaticFingerprintAction implements RunAction {
     private static final Logger LOG = Logger.getLogger(AutomaticFingerprintAction.class.getName());
 
-    private String fingerprintToken = UUID.randomUUID().toString();
-    private String dummyFilename = "Builds chain token (" + fingerprintToken + ")";
+    protected String fileName;
+    protected String md5sum;
+
+    protected transient Fingerprint fingerprint;
+
+    protected HashMap<String, String> fingerprintActionRecords;
 
     public AutomaticFingerprintAction() {
+    }
+
+    protected AutomaticFingerprintAction(String token, AbstractBuild build) {
+        this.fileName = "Auto fingerprinting token (" + token + ")";
+        this.md5sum = Util.getDigestOf(token);
+        CreateFingerprints(build);
     }
 
     public String getDisplayName() {
@@ -37,71 +47,62 @@ public class AutomaticFingerprintAction implements RunAction {
     }
 
     public void onAttached(Run r) {
-        CopyAutomaticFingerprintsFromUpstreamBuilds(r);
     }
 
     public void onBuildComplete() {
 
     }
 
-    public void CopyAutomaticFingerprintsFromUpstreamBuilds(Run r) {
-        CauseAction ca = r.getAction(CauseAction.class);
-        if (ca == null || ca.getCauses() ==null) {
-            return;
-        }
-        for (Cause c : ca.getCauses()){
-            if( c instanceof Cause.UpstreamCause){
-                Cause.UpstreamCause upcause = (Cause.UpstreamCause)c;
-                AbstractProject project = Hudson.getInstance().getItemByFullName(upcause.getUpstreamProject(), AbstractProject.class);
-                AbstractBuild upBuild = (AbstractBuild)project.getBuildByNumber(upcause.getUpstreamBuild());
-                CopyFingerprintActionFromUpstreamBuild((AbstractBuild)r, upBuild);
-            }
-        }
+    public String GetHashString(){
+        return md5sum;
     }
 
-    public void CopyFingerprintActionFromUpstreamBuild(AbstractBuild build, AbstractBuild upstreamBuild){
-        for (Fingerprinter.FingerprintAction action : upstreamBuild.getActions(Fingerprinter.FingerprintAction.class)){
-            Map<String, Fingerprint> fingerprints = action.getFingerprints();
-            if(fingerprints.containsKey(dummyFilename)){
-                Fingerprint f = fingerprints.get(dummyFilename);
-                if(!isAlreadyFingerprinted(build, f)){
-                    String md5sum = f.getHashString();
-                    doFingerprint(build, f, md5sum);
-                }
+    public void PerformFingerprinting(AbstractBuild build) {
+        try {
+            if(!isAlreadyFingerprinted(build, getFingerprint())){
+                getFingerprint().add(build);
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        AddFingerprintAction(build);
+    }
+
+    private void AddFingerprintAction(AbstractBuild build) {
+        Fingerprinter.FingerprintAction fingerprintAction = build.getAction(Fingerprinter.FingerprintAction.class);
+        fingerprintActionRecords = new HashMap<String, String>();
+        fingerprintActionRecords.put(fileName, md5sum);
+        if(fingerprintAction == null){
+            build.addAction(new Fingerprinter.FingerprintAction(build, fingerprintActionRecords));
+        } else {
+            fingerprintAction.add(fingerprintActionRecords);
         }
     }
 
     private boolean isAlreadyFingerprinted(AbstractBuild build, Fingerprint f) {
-        return f.getRangeSet(build.getProject().getFullName()).includes(build.getNumber());
+        return f.getRangeSet(build.getProject()).includes(build.getNumber());
     }
 
-    public void AddNewFingerprintAction(AbstractBuild build) {
+    private void CreateFingerprints(AbstractBuild build) {
         FingerprintMap map = Jenkins.getInstance().getFingerprintMap();
-        String md5sum = Util.getDigestOf(UUID.randomUUID().toString());
         try {
-            map.getOrCreate(build , dummyFilename, md5sum);
-            HashMap<String, String> record = new HashMap<String, String>();
-            record.put(dummyFilename, md5sum);
-            build.addAction(new Fingerprinter.FingerprintAction(build, record));
+            fingerprint = map.getOrCreate(build , fileName, md5sum);
+            getFingerprint().add(build);
+            AddFingerprintAction(build);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void doFingerprint(AbstractBuild build, Fingerprint f, String md5sum) {
-        HashMap<String, String> record = new HashMap<String, String>();
-        record.put(dummyFilename, md5sum);
-        Fingerprinter.FingerprintAction act = build.getAction(Fingerprinter.FingerprintAction.class);
-        if(act == null){
-            act = new Fingerprinter.FingerprintAction(build, record);
-            build.addAction(act);
+    private Fingerprint getFingerprint() {
+        if(fingerprint == null){
+            try {
+                fingerprint = Jenkins.getInstance()._getFingerprint(md5sum);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-
-        try {
-            f.add(build);
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
+        return fingerprint;
     }
 }
