@@ -3,7 +3,12 @@
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form"
          xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
 
-    <f:optionalBlock name="isAutomaticFingerprintingEnabled" checked="${instance.isAutomaticFingerprintingEnabled}" inline="false"
-                title="${%Enable automatic fingerprinting to all downstream jobs}"/>
+    <f:optionalBlock name="chainfingerprinting" checked="${instance.isPerBuildsChainEnabled || instance.isPerJobsChainEnabled}" inline="true"
+                title="${%Enable automatic fingerprinting to all downstream jobs}">
+        <f:nested>
+            <f:checkbox name="isPerBuildsChainEnabled" title="${%Enable builds hierarchy fingerprinting}" checked="${instance.isPerBuildsChainEnabled}" />
+            <f:checkbox name="isPerJobsChainEnabled" title="${%Enable jobs hierarchy fingerprinting}" checked="${instance.isPerJobsChainEnabled}" />
+        </f:nested>
+    </f:optionalBlock>
 
 </j:jelly>
