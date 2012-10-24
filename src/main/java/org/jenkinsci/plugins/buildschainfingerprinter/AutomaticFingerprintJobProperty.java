@@ -29,10 +29,10 @@ public class AutomaticFingerprintJobProperty extends JobProperty<AbstractProject
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         if(isPerJobsChainEnabled) {
-            build.addAction(new AutomaticFingerprintAction(build.getProject().getFullName(), build));
+            build.addAction(new JobsDependencyFingerprinter(build));
         }
         if(isPerBuildsChainEnabled){
-            build.addAction(new AutomaticFingerprintAction(UUID.randomUUID().toString(), build));
+            build.addAction(new BuildsDependencyFingerprinter(build));
         }
         return true;
     }

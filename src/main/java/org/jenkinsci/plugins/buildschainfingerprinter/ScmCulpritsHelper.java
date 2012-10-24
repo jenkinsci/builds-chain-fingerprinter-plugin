@@ -3,7 +3,9 @@ package org.jenkinsci.plugins.buildschainfingerprinter;
 import hudson.model.*;
 import hudson.scm.ChangeLogSet;
 import hudson.scm.NullSCM;
+import jenkins.model.Jenkins;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -16,7 +18,7 @@ import java.util.*;
 public class ScmCulpritsHelper {
     public Map<User, Set<AbstractBuild<?,?>>> GetUpstreamBuildCulprits(AbstractBuild<?, ?> build) {
         HashMap<User, Set<AbstractBuild<?,?>>> result = new HashMap<User, Set<AbstractBuild<?,?>>>();
-        HashMap<AbstractProject, HashSet<ChangeLogSet>> upstreamChanges = GetUpstreamScmChangesSinceLastTransientSuccess(build);
+        HashMap<AbstractProject, HashSet<ChangeLogSet>> upstreamChanges = GetUpstreamScmChangesSinceLastSuccess(build);
         for(Map.Entry<AbstractProject, HashSet<ChangeLogSet>> upstreamProjectChanges : upstreamChanges.entrySet()){
             for(ChangeLogSet changeLogSet : upstreamProjectChanges.getValue()){
                 for(Object changeSet : changeLogSet.getItems()){
@@ -36,53 +38,6 @@ public class ScmCulpritsHelper {
         return users;
     }
 
-    public HashMap<AbstractProject, HashSet<ChangeLogSet>> GetUpstreamScmChangesSinceLastTransientSuccess(AbstractBuild<?, ?> build) {
-        Fingerprint.RangeSet buildsRelatedToUpstream = GetBuildsCausedByUpstreamJobs(build);
-        Fingerprint.RangeSet sinceLastSuccess = GetSinceLastSuccessToExactBuildRange(build, buildsRelatedToUpstream);
-        return GetTransitiveUpstreamProjectChanges(build.getProject(), sinceLastSuccess);
-    }
-
-    private HashMap<AbstractProject, HashSet<ChangeLogSet>> GetTransitiveUpstreamProjectChanges(AbstractProject<?, ?> project, Fingerprint.RangeSet sinceLastSuccess) {
-        List<AbstractBuild> buildsSinceLastSuccess = (List<AbstractBuild>)project.getBuilds(sinceLastSuccess);
-        HashMap<AbstractProject, HashSet<ChangeLogSet>> result = new HashMap<AbstractProject, HashSet<ChangeLogSet>>();
-        for(AbstractBuild build : buildsSinceLastSuccess){
-            Map<AbstractProject, Integer> transitiveUpstreamBuilds = build.getTransitiveUpstreamBuilds();
-            for(Map.Entry<AbstractProject,Integer> projectBuild : transitiveUpstreamBuilds.entrySet()){
-                if(IsScmConfiguredForProject(projectBuild.getKey())){
-                    if(!result.containsKey(projectBuild.getKey())){
-                        result.put(projectBuild.getKey(), new HashSet<ChangeLogSet>());
-                    }
-                    AbstractBuild upstreamBuild = (AbstractBuild)projectBuild.getKey().getBuildByNumber(projectBuild.getValue());
-                    ChangeLogSet changeLogSet = upstreamBuild.getChangeSet();
-                    if(!changeLogSet.isEmptySet()){
-                        result.get(projectBuild.getKey()).add(changeLogSet);
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private Fingerprint.RangeSet GetSinceLastSuccessToExactBuildRange(AbstractBuild<?, ?> build, Fingerprint.RangeSet buildsRelatedToUpstream) {
-        Fingerprint.RangeSet result = new Fingerprint.RangeSet();
-        for(Integer buildId : buildsRelatedToUpstream.listNumbersReverse()){
-            if(buildId > build.getNumber()){
-                continue;
-            }
-            Result buildResult = build.getParent().getBuildByNumber(buildId).getResult();
-            if(buildResult == null || buildResult.isBetterOrEqualTo(Result.SUCCESS)){
-                if(build.getNumber() == buildId){
-                    result.add(buildId);
-                }else{
-                    break;
-                }
-            } else{
-                result.add(buildId);
-            }
-        }
-        return result;
-    }
-
     public String UpstreamChangesToString(HashMap<AbstractProject, HashSet<ChangeLogSet>> changes){
         StringBuilder res = new StringBuilder();
         for(Map.Entry<AbstractProject, HashSet<ChangeLogSet>> entry : changes.entrySet()){
@@ -99,21 +54,96 @@ public class ScmCulpritsHelper {
         return res.toString();
     }
 
-    public Fingerprint.RangeSet GetBuildsCausedByUpstreamJobs(AbstractBuild<?, ?> build) {
-        Fingerprint.RangeSet buildsRange = new Fingerprint.RangeSet();
-        buildsRange.add(build.getNumber());
-        AbstractProject project = build.getProject();
-        Map<AbstractProject,Integer> transitiveUpstreamBuilds = build.getTransitiveUpstreamBuilds();
-        for(Map.Entry<AbstractProject,Integer> upstreamBuild : transitiveUpstreamBuilds.entrySet()){
-            if(IsScmConfiguredForProject(upstreamBuild.getKey()))
-            {
-                SortedMap<Integer, Fingerprint.RangeSet> buildsRelatedToUpstrteamProject = upstreamBuild.getKey().getRelationship(project);
-                for (Map.Entry<Integer, Fingerprint.RangeSet> entry : buildsRelatedToUpstrteamProject.entrySet()){
-                    buildsRange.add(entry.getValue());
+    public HashMap<AbstractProject, HashSet<ChangeLogSet>> GetUpstreamScmChangesSinceLastSuccess(AbstractBuild<?, ?> build) {
+        Fingerprint.RangeSet sinceLastSuccess = GetSinceLastSuccesBuildsCausedByUpstreamJobs(build);
+        return GetTransitiveUpstreamProjectChanges(build, sinceLastSuccess);
+    }
+
+    public Fingerprint.RangeSet GetSinceLastSuccesBuildsCausedByUpstreamJobs(AbstractBuild<?, ?> build) {
+        Fingerprint.RangeSet result = new Fingerprint.RangeSet();
+        AutomaticFingerprintAction action = build.getAction(JobsDependencyFingerprinter.class);
+        Fingerprint f = null;
+        try {
+            f = Jenkins.getInstance()._getFingerprint(action.GetHashString());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if(f!=null){
+            AbstractProject project = build.getProject();
+            Fingerprint.RangeSet buildsRelatedToUpstream = f.getRangeSet(project);
+
+            for(Integer buildId : buildsRelatedToUpstream.listNumbersReverse()){
+                if(buildId > build.getNumber()){//for elder builds than requested
+                    continue;
+                }
+                Run buildByNumber = project.getBuildByNumber(buildId);
+                if(buildByNumber == null){//for deleted builds
+                    continue;
+                }
+                Result buildResult = buildByNumber.getResult();
+                if(buildResult == null){//for uncompleted builds
+                    continue;
+                }
+                if(buildResult.isBetterOrEqualTo(Result.SUCCESS)){
+                    if(build.getNumber() == buildId){
+                        result.add(buildId);
+                    }else{
+                        break;
+                    }
+                } else{
+                    result.add(buildId);
                 }
             }
         }
-        return buildsRange;
+        return result;
+    }
+
+    private HashMap<AbstractProject, HashSet<ChangeLogSet>> GetTransitiveUpstreamProjectChanges(AbstractBuild<?, ?> build, Fingerprint.RangeSet sinceLastSuccess) {
+
+        List<AbstractBuild> buildsSinceLastSuccess = (List<AbstractBuild>)build.getProject().getBuilds(sinceLastSuccess);
+
+        HashMap<AbstractProject, HashSet<ChangeLogSet>> result = new HashMap<AbstractProject, HashSet<ChangeLogSet>>();
+        HashMap<String, Fingerprint.RangeSet> upstreamBuildsSinceLastSuccess = new HashMap<String, Fingerprint.RangeSet>();
+        for(AbstractBuild previousBuild : buildsSinceLastSuccess){
+            AutomaticFingerprintAction action = previousBuild.getAction(BuildsDependencyFingerprinter.class);
+            Fingerprint f = null;
+            try {
+                f = Jenkins.getInstance()._getFingerprint(action.GetHashString());
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            if(f != null){
+                Hashtable<String,Fingerprint.RangeSet> usages = f.getUsages();
+
+                for(Map.Entry<String,Fingerprint.RangeSet> project : usages.entrySet()){
+                    if(!upstreamBuildsSinceLastSuccess.containsKey(project.getKey())){
+                        upstreamBuildsSinceLastSuccess.put(project.getKey(), project.getValue());
+                    } else {
+                        upstreamBuildsSinceLastSuccess.get(project.getKey()).add(project.getValue());
+                    }
+                }
+            }
+        }
+        for(Map.Entry<String, Fingerprint.RangeSet> entry : upstreamBuildsSinceLastSuccess.entrySet()){
+            AbstractProject upProject = Hudson.getInstance().getItemByFullName(entry.getKey(), AbstractProject.class);
+            if(IsScmConfiguredForProject(upProject)){
+                List<AbstractBuild> builds = upProject.getBuilds(entry.getValue());
+                for (AbstractBuild upBuild : builds){
+                    ChangeLogSet changeLogSet = upBuild.getChangeSet();
+                    if(!changeLogSet.isEmptySet()){
+                        if(!result.containsKey(upProject)){
+                            result.put(upProject, new HashSet<ChangeLogSet>());
+                        }
+                        result.get(upProject).add(changeLogSet);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     private boolean IsScmConfiguredForProject(AbstractProject proj) {
