@@ -10,6 +10,8 @@
   <artifactId>builds-chain-fingerprinter</artifactId>
   <version>1.0</version>
   <packaging>hpi</packaging>
+  <url>http://wiki.jenkins-ci.org/display/JENKINS/Builds+chain+fingerprinter</url>
+
 
   <developers>
       <developer>
