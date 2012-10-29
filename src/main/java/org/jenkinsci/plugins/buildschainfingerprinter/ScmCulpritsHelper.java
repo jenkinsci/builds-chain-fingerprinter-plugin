@@ -77,11 +77,13 @@ public class ScmCulpritsHelper {
                         continue;
                     }
                     Fingerprint e = GetBuidsDependencyFingerprint((AbstractBuild) b);
-                    int i = IsFingerprintInRangeSinceLastSuccess(e, build);
-                    if(i == 0){
-                        result.add(e);
-                    } else if (i < 0){
-                        break;
+                    if(e != null){
+                        int i = IsFingerprintInRangeSinceLastSuccess(e, build);
+                        if(i == 0){
+                            result.add(e);
+                        } else if (i < 0){
+                            break;
+                        }
                     }
                 }
             }
@@ -122,8 +124,9 @@ public class ScmCulpritsHelper {
         AutomaticFingerprintAction action = build.getAction(BuildsDependencyFingerprinter.class);
         Fingerprint f = null;
         try {
-            f = Jenkins.getInstance()._getFingerprint(action.GetHashString());
-
+            if(action != null){
+                f = Jenkins.getInstance()._getFingerprint(action.GetHashString());
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
