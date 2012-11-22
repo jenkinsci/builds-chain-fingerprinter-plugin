@@ -9,11 +9,11 @@
   <artifactId>builds-chain-fingerprinter</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>hpi</packaging>
-  <url>http://wiki.jenkins-ci.org/display/JENKINS/builds+chain+fingerprinter</url>
+  <url>http://wiki.jenkins-ci.org/display/JENKINS/Builds+chain+fingerprinter</url>
   <scm>
-      <connection>scm:git:git://github.com/jenkinsci/builds-chain-fingerprinter.git</connection>
-      <developerConnection>scm:git:git@github.com:jenkinsci/builds-chain-fingerprinter.git</developerConnection>
-      <url>https://github.com/jenkinsci/builds-chain-fingerprinter</url>
+      <connection>scm:git:git://github.com/jenkinsci/builds-chain-fingerprinter-plugin.git</connection>
+      <developerConnection>scm:git:git@github.com:jenkinsci/builds-chain-fingerprinter-plugin.git</developerConnection>
+      <url>https://github.com/jenkinsci/builds-chain-fingerprinter-plugin</url>
   </scm>
   <developers>
       <developer>
