@@ -47,6 +47,7 @@ public abstract class AutomaticFingerprintAction implements RunAction {
     }
 
     public void onAttached(Run r) {
+        PerformFingerprinting((AbstractBuild)r);
     }
 
     public void onBuildComplete() {
@@ -61,12 +62,11 @@ public abstract class AutomaticFingerprintAction implements RunAction {
         try {
             if(!isAlreadyFingerprinted(build, getFingerprint())){
                 getFingerprint().add(build);
+                AddFingerprintAction(build);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        AddFingerprintAction(build);
     }
 
     private void AddFingerprintAction(AbstractBuild build) {
