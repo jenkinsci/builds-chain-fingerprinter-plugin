@@ -11,8 +11,8 @@
   <packaging>hpi</packaging>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Builds+chain+fingerprinter</url>
   <scm>
-      <connection>scm:git:ssh://github.com/jenkinsci/builds-chain-fingerprinter-plugin.git</connection>
-      <developerConnection>scm:git:ssh://git@github.com/jenkinsci/builds-chain-fingerprinter-plugin.git</developerConnection>
+      <connection>scm:git:git@github.com:jenkinsci/builds-chain-fingerprinter-plugin.git</connection>
+      <developerConnection>scm:git:git@github.com/jenkinsci/builds-chain-fingerprinter-plugin.git</developerConnection>
       <url>https://github.com/jenkinsci/builds-chain-fingerprinter-plugin</url>
   </scm>
   <developers>
@@ -51,4 +51,13 @@
             <url>http://repo.jenkins-ci.org/public/</url>
         </pluginRepository>
     </pluginRepositories>
+
+    <distributionManagement>
+        <repository>
+            <id>repo.jenkins-ci.org</id>
+            <name>jenkins</name>
+            <url>http://repo.jenkins-ci.org/public/</url>
+        </repository>
+    </distributionManagement>
+
 </project>
