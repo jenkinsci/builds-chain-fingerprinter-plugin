@@ -7,13 +7,13 @@
   </parent>
 
   <artifactId>builds-chain-fingerprinter</artifactId>
-  <version>1.0</version>
+  <version>1.0-SNAPSHOT</version>
   <packaging>hpi</packaging>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Builds+chain+fingerprinter</url>
   <scm>
       <connection>scm:git:git@github.com:jenkinsci/builds-chain-fingerprinter-plugin.git</connection>
-      <developerConnection>scm:git:git@github.com/jenkinsci/builds-chain-fingerprinter-plugin.git</developerConnection>
-      <url>https://github.com/jenkinsci/builds-chain-fingerprinter-plugin</url>
+      <developerConnection>scm:git:git@github.com:jenkinsci/builds-chain-fingerprinter-plugin.git</developerConnection>
+      <url>scm:git:git@github.com:jenkinsci/builds-chain-fingerprinter-plugin.git</url>
   </scm>
   <developers>
       <developer>
@@ -38,26 +38,4 @@
           <optional>true</optional>
       </dependency>
   </dependencies>
-
-    <repositories>
-        <repository>
-            <id>repo.jenkins-ci.org</id>
-            <url>http://repo.jenkins-ci.org/public/</url>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>repo.jenkins-ci.org</id>
-            <url>http://repo.jenkins-ci.org/public/</url>
-        </pluginRepository>
-    </pluginRepositories>
-
-    <distributionManagement>
-        <repository>
-            <id>repo.jenkins-ci.org</id>
-            <name>jenkins</name>
-            <url>http://repo.jenkins-ci.org/public/</url>
-        </repository>
-    </distributionManagement>
-
 </project>
